@@ -28,11 +28,12 @@ function Home() {
       return
     }
 
+    setLoading(true)
     getTodayQuestion(lang)
       .then(setQuestion)
       .catch(() => setError("No se pudo cargar la pregunta de hoy"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [lang])
 
   async function handleAnswer(selectedId) {
     if (answered) return
@@ -66,7 +67,7 @@ function Home() {
 
   // Pantalla si ya jugó hoy
   if (alreadyPlayed) {
-    const todayResult = getTodayResult()
+    const todayResult = getTodayResult(lang)
     const correctOptionObj = todayResult?.options?.find(o => o.id === todayResult.correctOption)
     const selectedOptionObj = todayResult?.options?.find(o => o.id === todayResult.selectedId)
 

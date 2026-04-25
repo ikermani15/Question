@@ -22,14 +22,29 @@ export async function getTodayQuestion(lang = "es") {
   return {
     id:       q.id,
     lang,
-    question: isEn ? q.question_en : q.question,
+    question:    isEn ? q.question_en    : q.question,
+    explanation: isEn ? q.explanation_en : q.explanation,
     options: [
       { id: "a", text: isEn ? q.option_a_en : q.option_a },
       { id: "b", text: isEn ? q.option_b_en : q.option_b },
       { id: "c", text: isEn ? q.option_c_en : q.option_c },
       { id: "d", text: isEn ? q.option_d_en : q.option_d },
     ],
-    explanation: isEn ? q.explanation_en : q.explanation,
+    // Guardar también la versión alternativa para el localStorage
+    question_en:    q.question_en,
+    explanation_en: q.explanation_en,
+    options_en: [
+      { id: "a", text: q.option_a_en },
+      { id: "b", text: q.option_b_en },
+      { id: "c", text: q.option_c_en },
+      { id: "d", text: q.option_d_en },
+    ],
+    options_es: [
+      { id: "a", text: q.option_a },
+      { id: "b", text: q.option_b },
+      { id: "c", text: q.option_c },
+      { id: "d", text: q.option_d },
+    ],
   }
 }
 

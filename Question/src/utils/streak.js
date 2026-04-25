@@ -75,9 +75,12 @@ export function registerAnswer(isCorrect, questionData, selectedId, correctOptio
   // --- Guardar la pregunta y respuesta del día para poder revisarla ---
   localStorage.setItem("triviaTodayResult", JSON.stringify({
     date:          today,
-    question:      questionData.question,
-    options:       questionData.options,
+    question:      questionData.question,   // ES
+    question_en:   questionData.question_en || questionData.question,
+    options:       questionData.options_es  || questionData.options,
+    options_en:    questionData.options_en  || questionData.options,
     explanation:   questionData.explanation,
+    explanation_en: questionData.explanation_en || questionData.explanation,
     selectedId:    selectedId,
     correctOption: correctOption,
     isCorrect:     isCorrect,
@@ -93,10 +96,17 @@ export function hasAnsweredToday() {
   return current.lastDate === today && current.answeredToday === true
 }
 
-export function getTodayResult() {
+export function getTodayResult(lang = "es") {
   const data  = JSON.parse(localStorage.getItem("triviaTodayResult") || "null")
   const today = new Date().toISOString().split("T")[0]
   // Solo devuelve el resultado si es de hoy
   if (!data || data.date !== today) return null
-  return data
+  
+  const isEn = lang === "en"
+  return {
+    ...data,
+    question:    isEn ? (data.question_en    || data.question)    : data.question,
+    explanation: isEn ? (data.explanation_en || data.explanation) : data.explanation,
+    options:     isEn ? (data.options_en     || data.options)     : data.options,
+  }
 }
