@@ -137,10 +137,6 @@ function Home() {
           <div className="mt-6">
             <Countdown />
           </div>
-
-          <p className="text-gray-500 text-sm text-center mt-4">
-            {t ? "Come back tomorrow for a new question 🗓️" : "Vuelve mañana para una nueva pregunta 🗓️"}
-          </p>
         </div>
       </div>
     )
