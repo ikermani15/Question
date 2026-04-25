@@ -1,10 +1,13 @@
+import { useLang } from "../context/LangContext"
+
 function QuestionCard({ question, onAnswer }) {
+  const { lang } = useLang()
   return (
     <div className="w-full max-w-xl mx-auto">
 
       {/* Cabecera */}
       <p className="text-sm text-purple-400 font-semibold uppercase tracking-widest mb-3">
-        Pregunta del día
+        {lang === "en" ? "Question of the day" : "Pregunta del día"}
       </p>
 
       {/* Texto de la pregunta */}
