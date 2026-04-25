@@ -44,27 +44,24 @@ export function registerAnswer(isCorrect, questionData, selectedId, correctOptio
   const today     = new Date().toISOString().split("T")[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
 
-  // --- Actualizar racha de aciertos ---
   const currentCorrect = JSON.parse(localStorage.getItem("triviaCorrectStreak") || "{}")
   let newCorrectStreak = 0
 
   if (isCorrect) {
     if (currentCorrect.lastDate === yesterday) {
-      newCorrectStreak = (currentCorrect.streak || 0) + 1  // acertó ayer y hoy → continúa
+      newCorrectStreak = (currentCorrect.streak || 0) + 1
     } else if (currentCorrect.lastDate === today) {
-      newCorrectStreak = currentCorrect.streak              // ya respondió hoy, no cambia
+      newCorrectStreak = currentCorrect.streak
     } else {
-      newCorrectStreak = 1                                  // primer acierto o racha rota
+      newCorrectStreak = 1
     }
   }
-  // Si falla → newCorrectStreak queda en 0 (racha de aciertos se rompe)
 
   localStorage.setItem("triviaCorrectStreak", JSON.stringify({
     streak:   newCorrectStreak,
     lastDate: today,
   }))
 
-  // --- Marcar que ya respondió hoy en la racha de visitas ---
   const currentVisit = JSON.parse(localStorage.getItem("triviaVisitStreak") || "{}")
   localStorage.setItem("triviaVisitStreak", JSON.stringify({
     ...currentVisit,
@@ -72,18 +69,25 @@ export function registerAnswer(isCorrect, questionData, selectedId, correctOptio
     lastAnswerCorrect: isCorrect,
   }))
 
-  // --- Guardar la pregunta y respuesta del día para poder revisarla ---
+  // Guardar siempre ES y EN por separado, independientemente del idioma activo
+  const esOptions = questionData.options_es || questionData.options
+  const enOptions = questionData.options_en || questionData.options
+
   localStorage.setItem("triviaTodayResult", JSON.stringify({
-    date:          today,
-    question:      questionData.question,   // ES
-    question_en:   questionData.question_en || questionData.question,
-    options:       questionData.options_es  || questionData.options,
-    options_en:    questionData.options_en  || questionData.options,
-    explanation:   questionData.explanation,
+    date:           today,
+    question_es:    questionData.options_es
+                      ? (questionData.lang === "es" ? questionData.question : null)
+                      : questionData.question,
+    question_en:    questionData.question_en || questionData.question,
+    options_es:     esOptions,
+    options_en:     enOptions,
+    explanation_es: questionData.lang === "es"
+                      ? questionData.explanation
+                      : null,
     explanation_en: questionData.explanation_en || questionData.explanation,
-    selectedId:    selectedId,
-    correctOption: correctOption,
-    isCorrect:     isCorrect,
+    selectedId,
+    correctOption,
+    isCorrect,
   }))
 
   return newCorrectStreak
@@ -99,14 +103,13 @@ export function hasAnsweredToday() {
 export function getTodayResult(lang = "es") {
   const data  = JSON.parse(localStorage.getItem("triviaTodayResult") || "null")
   const today = new Date().toISOString().split("T")[0]
-  // Solo devuelve el resultado si es de hoy
   if (!data || data.date !== today) return null
-  
+
   const isEn = lang === "en"
   return {
     ...data,
-    question:    isEn ? (data.question_en    || data.question)    : data.question,
-    explanation: isEn ? (data.explanation_en || data.explanation) : data.explanation,
-    options:     isEn ? (data.options_en     || data.options)     : data.options,
+    question:    isEn ? data.question_en    : (data.question_es    || data.question_en),
+    explanation: isEn ? data.explanation_en : (data.explanation_es || data.explanation_en),
+    options:     isEn ? data.options_en     : (data.options_es     || data.options_en),
   }
 }

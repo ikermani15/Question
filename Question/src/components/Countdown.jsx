@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react"
+import { useLang } from "../context/LangContext"
 
 function Countdown() {
   const [timeLeft, setTimeLeft] = useState(getTimeUntilMidnight())
+  const { lang } = useLang()
+  const t = lang === "en"
 
   function getTimeUntilMidnight() {
     const now       = new Date()
@@ -33,7 +36,7 @@ function Countdown() {
   return (
     <div className="text-center">
       <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">
-        Nueva pregunta en
+        {t ? "New question in" : "Nueva pregunta en"}
       </p>
       <div className="flex items-center gap-1 justify-center">
         <TimeBlock value={pad(timeLeft.hours)}   label="h" />
