@@ -16,24 +16,27 @@ function Home() {
   const [alreadyPlayed, setAlreadyPlayed] = useState(false)
   const { lang } = useLang()
 
+  // Efecto 1 — solo al montar: registrar visita y comprobar si ya jugó
   useEffect(() => {
-    // Registrar visita al entrar (actualiza racha de visitas)
     registerVisit()
-    //setStreaks(getStreaks())
 
-    // Comprobar si ya jugó hoy
     if (hasAnsweredToday()) {
       setAlreadyPlayed(true)
       setLoading(false)
       return
     }
+  }, [])
+
+  // Efecto 2 — cuando cambia el idioma O cuando se sabe que no ha jugado: cargar pregunta
+  useEffect(() => {
+    if (alreadyPlayed) return  // si ya jugó, no cargar pregunta
 
     setLoading(true)
     getTodayQuestion(lang)
       .then(setQuestion)
       .catch(() => setError("No se pudo cargar la pregunta de hoy"))
       .finally(() => setLoading(false))
-  }, [lang])
+  }, [lang, alreadyPlayed])
 
   async function handleAnswer(selectedId) {
     if (answered) return
