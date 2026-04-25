@@ -8,29 +8,29 @@ import Countdown from "../components/Countdown"
 
 function Home() {
   const navigate = useNavigate()
-  const [question, setQuestion]   = useState(null)
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
-  const [answered, setAnswered]   = useState(false)
-  const [streaks, setStreaks]     = useState(getStreaks())
-  const [alreadyPlayed, setAlreadyPlayed] = useState(false)
   const { lang } = useLang()
+
+  const [question, setQuestion]         = useState(null)
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState(null)
+  const [answered, setAnswered]         = useState(false)
+  const [streaks]                       = useState(getStreaks())
+  const [alreadyPlayed, setAlreadyPlayed] = useState(false)
+  const [todayResult, setTodayResult]   = useState(null)
 
   // Efecto 1 — solo al montar: registrar visita y comprobar si ya jugó
   useEffect(() => {
     registerVisit()
-
-    if (hasAnsweredToday()) {
+    const played = hasAnsweredToday()
+    if (played) {
       setAlreadyPlayed(true)
       setLoading(false)
-      return
     }
   }, [])
 
-  // Efecto 2 — cuando cambia el idioma O cuando se sabe que no ha jugado: cargar pregunta
+  // Efecto 2 — cargar pregunta cuando cambia el idioma (solo si no ha jugado)
   useEffect(() => {
-    if (alreadyPlayed) return  // si ya jugó, no cargar pregunta
-
+    if (alreadyPlayed) return
     setLoading(true)
     getTodayQuestion(lang)
       .then(setQuestion)
@@ -38,15 +38,18 @@ function Home() {
       .finally(() => setLoading(false))
   }, [lang, alreadyPlayed])
 
+  // Efecto 3 — actualizar el resultado del día cuando cambia el idioma
+  useEffect(() => {
+    if (!alreadyPlayed) return
+    setTodayResult(getTodayResult(lang))
+  }, [lang, alreadyPlayed])
+
   async function handleAnswer(selectedId) {
     if (answered) return
     setAnswered(true)
 
     const { isCorrect, correctOption } = await submitAnswer(question.id, selectedId)
-
-    // Actualizar rachas en localStorage
     const newCorrectStreak = registerAnswer(isCorrect, question, selectedId, correctOption)
-    setStreaks(getStreaks())
 
     setTimeout(() => {
       navigate("/result", {
@@ -70,7 +73,6 @@ function Home() {
 
   // Pantalla si ya jugó hoy
   if (alreadyPlayed) {
-    const todayResult = getTodayResult(lang)
     const correctOptionObj = todayResult?.options?.find(o => o.id === todayResult.correctOption)
     const selectedOptionObj = todayResult?.options?.find(o => o.id === todayResult.selectedId)
 
@@ -78,66 +80,66 @@ function Home() {
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-xl mx-auto">
 
-          {/* Rachas */}
           <div className="flex gap-8 justify-center mb-8">
             <div className="text-center">
               <p className="text-3xl font-bold text-orange-400">🔥 {streaks.visitStreak}</p>
-              <p className="text-sm text-gray-400 mt-1">Días seguidos</p>
+              <p className="text-sm text-gray-400 mt-1">{lang === "en" ? "Day streak" : "Días seguidos"}</p>
             </div>
             <div className="text-center">
               <p className="text-3xl font-bold text-green-400">✅ {streaks.correctStreak}</p>
-              <p className="text-sm text-gray-400 mt-1">Aciertos seguidos</p>
+              <p className="text-sm text-gray-400 mt-1">{lang === "en" ? "Correct streak" : "Aciertos seguidos"}</p>
             </div>
           </div>
 
-          {/* Resultado del día */}
           {todayResult && (
             <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
-
-              {/* Cabecera */}
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-3xl">{todayResult.isCorrect ? "🎉" : "❌"}</span>
                 <div>
                   <p className={`font-bold text-lg ${todayResult.isCorrect ? "text-green-400" : "text-red-400"}`}>
-                    {todayResult.isCorrect ? "¡Acertaste!" : "Fallaste"}
+                    {todayResult.isCorrect
+                      ? (lang === "en" ? "Correct!" : "¡Acertaste!")
+                      : (lang === "en" ? "Wrong!" : "Fallaste")}
                   </p>
-                  <p className="text-gray-400 text-sm">Pregunta de hoy</p>
+                  <p className="text-gray-400 text-sm">
+                    {lang === "en" ? "Today's question" : "Pregunta de hoy"}
+                  </p>
                 </div>
               </div>
 
-              {/* Pregunta */}
               <p className="text-white font-semibold mb-4">{todayResult.question}</p>
 
-              {/* Tu respuesta (solo si fallaste) */}
               {!todayResult.isCorrect && selectedOptionObj && (
                 <div className="bg-red-900/30 border border-red-700 rounded-xl px-4 py-3 mb-3">
-                  <p className="text-xs text-red-400 font-semibold mb-1">Tu respuesta</p>
+                  <p className="text-xs text-red-400 font-semibold mb-1">
+                    {lang === "en" ? "Your answer" : "Tu respuesta"}
+                  </p>
                   <p className="text-white text-sm">{selectedOptionObj.text}</p>
                 </div>
               )}
 
-              {/* Respuesta correcta */}
               {correctOptionObj && (
                 <div className="bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 mb-4">
-                  <p className="text-xs text-green-400 font-semibold mb-1">Respuesta correcta</p>
+                  <p className="text-xs text-green-400 font-semibold mb-1">
+                    {lang === "en" ? "Correct answer" : "Respuesta correcta"}
+                  </p>
                   <p className="text-white text-sm">{correctOptionObj.text}</p>
                 </div>
               )}
 
-              {/* Explicación */}
               {todayResult.explanation && (
                 <p className="text-gray-400 text-sm italic">{todayResult.explanation}</p>
               )}
-
             </div>
           )}
-          
-          <Countdown />
 
-          <p className="text-gray-500 text-sm text-center mt-6">
-            Vuelve mañana para una nueva pregunta 🗓️
+          <div className="mt-6">
+            <Countdown />
+          </div>
+
+          <p className="text-gray-500 text-sm text-center mt-4">
+            {lang === "en" ? "Come back tomorrow for a new question 🗓️" : "Vuelve mañana para una nueva pregunta 🗓️"}
           </p>
-
         </div>
       </div>
     )
@@ -151,19 +153,16 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4">
-
-      {/* Rachas en la parte superior */}
       <div className="flex gap-8 mb-8">
         <div className="text-center">
           <p className="text-2xl font-bold text-orange-400">🔥 {streaks.visitStreak}</p>
-          <p className="text-xs text-gray-400 mt-1">Días seguidos</p>
+          <p className="text-xs text-gray-400 mt-1">{lang === "en" ? "Day streak" : "Días seguidos"}</p>
         </div>
         <div className="text-center">
           <p className="text-2xl font-bold text-green-400">✅ {streaks.correctStreak}</p>
-          <p className="text-xs text-gray-400 mt-1">Aciertos seguidos</p>
+          <p className="text-xs text-gray-400 mt-1">{lang === "en" ? "Correct streak" : "Aciertos seguidos"}</p>
         </div>
       </div>
-
       <QuestionCard question={question} onAnswer={handleAnswer} />
     </div>
   )
