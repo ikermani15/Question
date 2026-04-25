@@ -1,5 +1,5 @@
-const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export async function getTodayQuestion(lang = "es") {
   const today = new Date().toISOString().split("T")[0]
@@ -35,10 +35,13 @@ export async function getTodayQuestion(lang = "es") {
 
 export async function submitAnswer(questionId, selectedOption) {
   const response = await fetch(
-    `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/questions/answer`,
+    `${SUPABASE_URL}/functions/v1/check-answer`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+      },
       body: JSON.stringify({ questionId, selectedOption }),
     }
   )
