@@ -123,7 +123,7 @@ function Countdown() {
 function TimeBlock({ value, label }) {
   return (
     <div className="flex flex-col items-center">
-      <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 min-w-[48px] text-center">
+      <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 min-w-48px text-center">
         <span className="text-white font-bold text-lg font-mono">{value}</span>
       </div>
       <span className="text-gray-600 text-xs mt-1">{label}</span>
