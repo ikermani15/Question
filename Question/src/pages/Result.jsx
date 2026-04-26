@@ -1,21 +1,32 @@
+import { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useLang } from "../context/LangContext"
+import { getTodayQuestion } from "../services/questionService"
 import Countdown from "../components/Countdown"
 
 function Result() {
-  const { state } = useLocation()
-  const navigate  = useNavigate()
-  const { lang }  = useLang()
-  const t = lang === "en"
+  const { state }  = useLocation()
+  const navigate   = useNavigate()
+  const { lang }   = useLang()
+  const t          = lang === "en"
+
+  const [question, setQuestion] = useState(state?.question || null)
+
+  // Recargar la pregunta en el idioma correcto cuando cambia lang
+  useEffect(() => {
+    getTodayQuestion(lang)
+      .then(setQuestion)
+      .catch(() => {})
+  }, [lang])
 
   if (!state) {
     navigate("/")
     return null
   }
 
-  const { isCorrect, selectedId, correctOption, question, correctStreak, visitStreak } = state
-  const correctOptionObj  = question.options.find(o => o.id === correctOption)
-  const selectedOptionObj = question.options.find(o => o.id === selectedId)
+  const { isCorrect, selectedId, correctOption, correctStreak, visitStreak } = state
+  const correctOptionObj  = question?.options?.find(o => o.id === correctOption)
+  const selectedOptionObj = question?.options?.find(o => o.id === selectedId)
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4">
@@ -32,7 +43,7 @@ function Result() {
         </h1>
 
         <p className="text-gray-400 mb-6 text-lg">
-          {question.question}
+          {question?.question}
         </p>
 
         {!isCorrect && selectedOptionObj && (
@@ -54,7 +65,7 @@ function Result() {
         )}
 
         <p className="text-gray-400 text-sm mb-8 italic">
-          {question.explanation}
+          {question?.explanation}
         </p>
 
         <div className="flex gap-8 justify-center mb-6">
