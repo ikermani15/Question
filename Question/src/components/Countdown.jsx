@@ -4,7 +4,7 @@ import { useLang } from "../context/LangContext"
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-async function getQuestionDate() {
+async function getTodayQuestionDate() {
   const today = new Date().toISOString().split("T")[0]
   const res   = await fetch(
     `${SUPABASE_URL}/rest/v1/questions?play_date=eq.${today}&select=created_at`,
@@ -15,39 +15,54 @@ async function getQuestionDate() {
   return new Date(rows[0].created_at)
 }
 
+async function newQuestionAvailable(currentCreatedAt) {
+  const today = new Date().toISOString().split("T")[0]
+  const res   = await fetch(
+    `${SUPABASE_URL}/rest/v1/questions?play_date=eq.${today}&select=created_at`,
+    { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+  )
+  const rows = await res.json()
+  if (!rows || rows.length === 0) return false
+  const newDate = new Date(rows[0].created_at)
+  return !currentCreatedAt || newDate.getTime() !== currentCreatedAt.getTime()
+}
+
 function Countdown() {
-  const { lang }        = useLang()
-  const t               = lang === "en"
-  const [timeLeft, setTimeLeft]   = useState(null)
-  const [waiting, setWaiting]     = useState(false)
+  const { lang }                = useLang()
+  const t                       = lang === "en"
+  const [timeLeft, setTimeLeft] = useState(null)
+  const [waiting, setWaiting]   = useState(false)
 
   useEffect(() => {
-    let interval
-    let retryInterval
+    let ticker
+    let retrier
 
     async function init() {
-      const questionDate = await getQuestionDate()
+      const questionDate = await getTodayQuestionDate()
+
       if (!questionDate) {
         setWaiting(true)
-        // Reintentar cada 60 segundos hasta que haya pregunta nueva
-        retryInterval = setInterval(async () => {
-          const newDate = await getQuestionDate()
-          if (newDate) window.location.reload()
+        retrier = setInterval(async () => {
+          const isNew = await newQuestionAvailable(null)
+          if (isNew) {
+            clearInterval(retrier)
+            window.location.reload()
+          }
         }, 60000)
         return
       }
 
       function tick() {
-        const nextQuestion = new Date(questionDate.getTime() + 24 * 60 * 60 * 1000)
-        const diff         = nextQuestion - new Date()
+        const next = new Date(questionDate.getTime() + 24 * 60 * 60 * 1000)
+        const diff = next - new Date()
 
         if (diff <= 0) {
+          clearInterval(ticker)
           setWaiting(true)
-          clearInterval(interval)
-          // Reintentar cada 60 segundos
-          retryInterval = setInterval(async () => {
-            const newDate = await getQuestionDate()
-            if (newDate && newDate.getTime() !== questionDate.getTime()) {
+          retrier = setInterval(async () => {
+            const isNew = await newQuestionAvailable(questionDate)
+            if (isNew) {
+              clearInterval(retrier)
               window.location.reload()
             }
           }, 60000)
@@ -62,19 +77,18 @@ function Countdown() {
       }
 
       tick()
-      interval = setInterval(tick, 1000)
+      ticker = setInterval(tick, 1000)
     }
 
     init()
     return () => {
-      clearInterval(interval)
-      clearInterval(retryInterval)
+      clearInterval(ticker)
+      clearInterval(retrier)
     }
   }, [])
 
   const pad = (n) => String(n).padStart(2, "0")
 
-  // Esperando pregunta nueva
   if (waiting) return (
     <div className="text-center">
       <p className="text-xs text-gray-500 uppercase tracking-widest mb-2">
@@ -84,7 +98,6 @@ function Countdown() {
     </div>
   )
 
-  // Cargando
   if (!timeLeft) return (
     <div className="text-center">
       <p className="text-xs text-gray-600 uppercase tracking-widest">...</p>
