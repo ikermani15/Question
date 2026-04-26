@@ -23,29 +23,34 @@ function Countdown() {
 
   useEffect(() => {
     let interval
+    let retryInterval
 
     async function init() {
       const questionDate = await getQuestionDate()
       if (!questionDate) {
         setWaiting(true)
+        // Reintentar cada 60 segundos hasta que haya pregunta nueva
+        retryInterval = setInterval(async () => {
+          const newDate = await getQuestionDate()
+          if (newDate) window.location.reload()
+        }, 60000)
         return
       }
 
-      // El contador es de 24 horas desde que se publicó la pregunta
       function tick() {
         const nextQuestion = new Date(questionDate.getTime() + 24 * 60 * 60 * 1000)
         const diff         = nextQuestion - new Date()
 
         if (diff <= 0) {
-          // Comprobar si ya hay pregunta nueva
-          getQuestionDate().then(newDate => {
+          setWaiting(true)
+          clearInterval(interval)
+          // Reintentar cada 60 segundos
+          retryInterval = setInterval(async () => {
+            const newDate = await getQuestionDate()
             if (newDate && newDate.getTime() !== questionDate.getTime()) {
               window.location.reload()
-            } else {
-              setWaiting(true)
-              clearInterval(interval)
             }
-          })
+          }, 60000)
           return
         }
 
@@ -61,7 +66,10 @@ function Countdown() {
     }
 
     init()
-    return () => clearInterval(interval)
+    return () => {
+      clearInterval(interval)
+      clearInterval(retryInterval)
+    }
   }, [])
 
   const pad = (n) => String(n).padStart(2, "0")
