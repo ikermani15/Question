@@ -1,12 +1,12 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export async function getTodayQuestion(lang = "es") {
+export async function getTodayQuestion(lang = "es", mode = "daily") {
   const today = new Date().toISOString().split("T")[0]
   const isEn  = lang === "en"
 
   const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/questions?play_date=eq.${today}&select=*`,
+    `${SUPABASE_URL}/rest/v1/questions?play_date=eq.${today}&mode=eq.${mode}&select=*`,
     {
       headers: {
         "apikey":        SUPABASE_KEY,
