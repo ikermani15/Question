@@ -1,10 +1,3 @@
 https://bkotksthrkuoakqjovoj.supabase.co/functions/v1/super-api
 http://localhost:3000/api/admin/generate
 
-Cada noche a las 23:00, Supabase ejecuta el cron
-        ↓
-Llama a la Edge Function
-        ↓
-Esta llama a Gemini y guarda la pregunta de mañana en la BD
-        ↓
-A medianoche el usuario ve la nueva pregunta

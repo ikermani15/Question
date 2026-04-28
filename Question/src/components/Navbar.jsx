@@ -40,6 +40,10 @@ function Navbar() {
             {lang === "es" ? "Jugar" : "Play"}
           </Link>
 
+          <Link to="/grupos" className="text-sm text-gray-400 hover:text-white transition-colors">
+            {lang === "en" ? "Groups" : "Grupos"}
+          </Link>
+
         </div>
       </div>
     </nav>
