@@ -1,3 +1,4 @@
 https://bkotksthrkuoakqjovoj.supabase.co/functions/v1/super-api
 http://localhost:3000/api/admin/generate
 
+El idioma de las preguntas en grupo no cambia

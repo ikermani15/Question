@@ -97,3 +97,46 @@ export function getGroupSession() {
 export function clearGroupSession() {
   localStorage.removeItem("triviaGroup")
 }
+
+export async function getGroupInfo(code) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/trivia_groups?code=eq.${code}&select=*`,
+    { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+  )
+  const rows = await res.json()
+  return rows[0] || null
+}
+
+export async function kickParticipant(participantId, groupId, requesterUsername, creatorUsername) {
+  if (requesterUsername !== creatorUsername) {
+    throw new Error("Solo el creador puede expulsar jugadores")
+  }
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/group-admin`, {
+    method: "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+    },
+    body: JSON.stringify({ action: "kick", participantId, groupId, requesterUsername }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error)
+  return data
+}
+
+export async function deleteGroup(groupId, requesterUsername, creatorUsername) {
+  if (requesterUsername !== creatorUsername) {
+    throw new Error("Solo el creador puede eliminar el grupo")
+  }
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/group-admin`, {
+    method: "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+    },
+    body: JSON.stringify({ action: "delete", groupId, requesterUsername }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error)
+  return data
+}

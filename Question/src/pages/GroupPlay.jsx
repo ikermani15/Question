@@ -4,7 +4,7 @@ import { getTodayGroupQuestion, submitGroupAnswer } from "../services/groupServi
 import { useGroup } from "../context/GroupContext"
 import { useLang } from "../context/LangContext"
 
-const TIME_LIMIT = 10 // segundos
+const TIME_LIMIT = 20 // segundos
 
 function GroupPlay() {
   const { code }              = useParams()
@@ -24,29 +24,78 @@ function GroupPlay() {
   const timerRef     = useRef(null)
 
   useEffect(() => {
+    if (!question || answered) return
+    getTodayGroupQuestion(lang).then(setQuestion).catch(() => {})
+  }, [lang])
+
+  useEffect(() => {
     if (!group || !participant) {
       navigate("/grupos")
       return
     }
-    getTodayGroupQuestion(lang)
-      .then(q => {
+
+    async function load() {
+      try {
+        const q = await getTodayGroupQuestion(lang)
         setQuestion(q)
+
+        // Comprobar si ya respondió hoy
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/group_answers?participant_id=eq.${participant.id}&question_id=eq.${q.id}&select=*`,
+          {
+            headers: {
+              "apikey":        import.meta.env.VITE_SUPABASE_ANON_KEY,
+              "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            }
+          }
+        )
+        const existing = await res.json()
+
+        if (existing && existing.length > 0) {
+          // Ya respondió → mostrar resultado anterior
+          const prev = existing[0]
+          setResult({
+            isCorrect:     prev.is_correct,
+            selectedId:    prev.selected_option,
+            correctOption: q.options.find(o => o.id !== prev.selected_option && prev.is_correct === false)
+                          ? null : prev.selected_option, // se sobreescribe abajo
+            points: { base: 0, speedBonus: 0, streakBonus: 0, total: prev.points_earned },
+            alreadyAnswered: true,
+          })
+
+          // Obtener la opción correcta
+          const qRes = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/questions?id=eq.${q.id}&select=correct_option`,
+            {
+              headers: {
+                "apikey":        import.meta.env.VITE_SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              }
+            }
+          )
+          const qData = await qRes.json()
+          setResult(prev => ({ ...prev, correctOption: qData[0].correct_option }))
+          setAnswered(true)
+          return
+        }
+
+        // No ha respondido → iniciar contrarreloj
         setLoading(false)
-        // Iniciar contrarreloj cuando carga la pregunta
         startTimeRef.current = Date.now()
         timerRef.current = setInterval(() => {
           setTimeLeft(prev => {
-            if (prev <= 1) {
-              clearInterval(timerRef.current)
-              return 0
-            }
+            if (prev <= 1) { clearInterval(timerRef.current); return 0 }
             return prev - 1
           })
         }, 1000)
-      })
-      .catch(() => setError(t ? "Could not load today's question" : "No se pudo cargar la pregunta"))
-      .finally(() => setLoading(false))
 
+      } catch {
+        setError(t ? "Could not load today's question" : "No se pudo cargar la pregunta")
+        setLoading(false)
+      }
+    }
+
+    load()
     return () => clearInterval(timerRef.current)
   }, [])
 
