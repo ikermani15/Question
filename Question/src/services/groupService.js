@@ -140,3 +140,16 @@ export async function deleteGroup(groupId, requesterUsername, creatorUsername) {
   if (!res.ok) throw new Error(data.error)
   return data
 }
+
+export async function getLeaderboard(groupId) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/participants?group_id=eq.${groupId}&select=id,username,monthly_points,current_streak,avatar&order=monthly_points.desc`,
+    {
+      headers: {
+        "apikey":        SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+      },
+    }
+  )
+  return res.json()
+}

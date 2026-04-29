@@ -4,27 +4,34 @@ import { getTodayGroupQuestion, submitGroupAnswer } from "../services/groupServi
 import { useGroup } from "../context/GroupContext"
 import { useLang } from "../context/LangContext"
 
-const TIME_LIMIT = 20 // segundos
+const TIME_LIMIT = 20
 
 function GroupPlay() {
-  const { code }              = useParams()
-  const navigate              = useNavigate()
+  const { code }               = useParams()
+  const navigate               = useNavigate()
   const { group, participant } = useGroup()
-  const { lang }              = useLang()
-  const t                     = lang === "en"
+  const { lang }               = useLang()
+  const t                      = lang === "en"
 
-  const [question, setQuestion]   = useState(null)
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
-  const [timeLeft, setTimeLeft]   = useState(TIME_LIMIT)
-  const [result, setResult]       = useState(null)
-  const [answered, setAnswered]   = useState(false)
+  const [question, setQuestion] = useState(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const [result, setResult]     = useState(null)
+  const [answered, setAnswered] = useState(false)
 
   const startTimeRef = useRef(null)
   const timerRef     = useRef(null)
 
+  // Recargar pregunta en el idioma correcto si cambia lang y no ha respondido
   useEffect(() => {
     if (!question || answered) return
+    getTodayGroupQuestion(lang).then(setQuestion).catch(() => {})
+  }, [lang])
+
+  // Recargar explicación/pregunta si ya respondió y cambia el idioma
+  useEffect(() => {
+    if (!answered || !result) return
     getTodayGroupQuestion(lang).then(setQuestion).catch(() => {})
   }, [lang])
 
@@ -52,16 +59,7 @@ function GroupPlay() {
         const existing = await res.json()
 
         if (existing && existing.length > 0) {
-          // Ya respondió → mostrar resultado anterior
           const prev = existing[0]
-          setResult({
-            isCorrect:     prev.is_correct,
-            selectedId:    prev.selected_option,
-            correctOption: q.options.find(o => o.id !== prev.selected_option && prev.is_correct === false)
-                          ? null : prev.selected_option, // se sobreescribe abajo
-            points: { base: 0, speedBonus: 0, streakBonus: 0, total: prev.points_earned },
-            alreadyAnswered: true,
-          })
 
           // Obtener la opción correcta
           const qRes = await fetch(
@@ -74,8 +72,16 @@ function GroupPlay() {
             }
           )
           const qData = await qRes.json()
-          setResult(prev => ({ ...prev, correctOption: qData[0].correct_option }))
+
+          setResult({
+            isCorrect:      prev.is_correct,
+            selectedId:     prev.selected_option,
+            correctOption:  qData[0].correct_option,
+            points:         { base: 0, speedBonus: 0, streakBonus: 0, total: prev.points_earned },
+            alreadyAnswered: true,
+          })
           setAnswered(true)
+          setLoading(false)  // ← importante
           return
         }
 
@@ -89,7 +95,7 @@ function GroupPlay() {
           })
         }, 1000)
 
-      } catch {
+      } catch (err) {
         setError(t ? "Could not load today's question" : "No se pudo cargar la pregunta")
         setLoading(false)
       }
@@ -108,10 +114,7 @@ function GroupPlay() {
 
     try {
       const data = await submitGroupAnswer(
-        participant.id,
-        question.id,
-        selectedId,
-        responseTimeMs
+        participant.id, question.id, selectedId, responseTimeMs
       )
       setResult({ ...data, selectedId })
     } catch (err) {
@@ -128,10 +131,7 @@ function GroupPlay() {
   if (error) return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4 gap-4">
       <p className="text-red-400 text-center">{error}</p>
-      <button
-        onClick={() => navigate(`/grupos/${code}`)}
-        className="text-purple-400 hover:text-purple-300"
-      >
+      <button onClick={() => navigate(`/grupos/${code}`)} className="text-purple-400 hover:text-purple-300">
         ← {t ? "Back to lobby" : "Volver al lobby"}
       </button>
     </div>
@@ -139,8 +139,8 @@ function GroupPlay() {
 
   // Pantalla de resultado
   if (result) {
-    const correctObj  = question.options.find(o => o.id === result.correctOption)
-    const selectedObj = question.options.find(o => o.id === result.selectedId)
+    const correctObj  = question?.options?.find(o => o.id === result.correctOption)
+    const selectedObj = question?.options?.find(o => o.id === result.selectedId)
 
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4">
@@ -148,40 +148,45 @@ function GroupPlay() {
 
           <div className="text-6xl mb-4">{result.isCorrect ? "🎉" : "❌"}</div>
 
-          <h1 className={`text-3xl font-bold mb-6 ${result.isCorrect ? "text-green-400" : "text-red-400"}`}>
+          <h1 className={`text-3xl font-bold mb-2 ${result.isCorrect ? "text-green-400" : "text-red-400"}`}>
             {result.isCorrect ? (t ? "Correct!" : "¡Correcto!") : (t ? "Wrong!" : "Fallaste")}
           </h1>
 
-          {/* Desglose de puntos */}
-          <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 mb-6 text-left">
-            <h3 className="text-gray-400 text-sm font-semibold uppercase mb-4">
-              {t ? "Points earned" : "Puntos obtenidos"}
-            </h3>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between">
-                <span className="text-gray-300">{t ? "Correct answer" : "Respuesta correcta"}</span>
-                <span className="text-white font-bold">+{result.points.base}</span>
-              </div>
-              {result.points.speedBonus > 0 && (
+          {/* Pregunta */}
+          <p className="text-gray-400 mb-6 text-lg">{question?.question}</p>
+
+          {/* Desglose de puntos — solo si acaba de responder, no si ya había respondido */}
+          {!result.alreadyAnswered && (
+            <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 mb-6 text-left">
+              <h3 className="text-gray-400 text-sm font-semibold uppercase mb-4">
+                {t ? "Points earned" : "Puntos obtenidos"}
+              </h3>
+              <div className="flex flex-col gap-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-300">⚡ {t ? "Speed bonus" : "Bonus velocidad"}</span>
-                  <span className="text-yellow-400 font-bold">+{result.points.speedBonus}</span>
+                  <span className="text-gray-300">{t ? "Correct answer" : "Respuesta correcta"}</span>
+                  <span className="text-white font-bold">+{result.points.base}</span>
                 </div>
-              )}
-              {result.points.streakBonus > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-300">🔥 {t ? "Streak bonus" : "Bonus racha"}</span>
-                  <span className="text-orange-400 font-bold">+{result.points.streakBonus}</span>
+                {result.points.speedBonus > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">⚡ {t ? "Speed bonus" : "Bonus velocidad"}</span>
+                    <span className="text-yellow-400 font-bold">+{result.points.speedBonus}</span>
+                  </div>
+                )}
+                {result.points.streakBonus > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">🔥 {t ? "Streak bonus" : "Bonus racha"}</span>
+                    <span className="text-orange-400 font-bold">+{result.points.streakBonus}</span>
+                  </div>
+                )}
+                <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between">
+                  <span className="text-white font-semibold">Total</span>
+                  <span className="text-purple-400 font-bold text-xl">+{result.points.total}</span>
                 </div>
-              )}
-              <div className="border-t border-gray-600 pt-2 mt-2 flex justify-between">
-                <span className="text-white font-semibold">{t ? "Total" : "Total"}</span>
-                <span className="text-purple-400 font-bold text-xl">+{result.points.total}</span>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Respuesta correcta */}
+          {/* Tu respuesta si fallaste */}
           {!result.isCorrect && selectedObj && (
             <div className="bg-red-900/30 border border-red-700 rounded-xl px-5 py-3 mb-3 text-left">
               <p className="text-xs text-red-400 font-semibold mb-1">
@@ -190,6 +195,8 @@ function GroupPlay() {
               <p className="text-white">{selectedObj.text}</p>
             </div>
           )}
+
+          {/* Respuesta correcta */}
           {correctObj && (
             <div className="bg-green-900/30 border border-green-700 rounded-xl px-5 py-3 mb-6 text-left">
               <p className="text-xs text-green-400 font-semibold mb-1">
@@ -199,12 +206,14 @@ function GroupPlay() {
             </div>
           )}
 
-          <p className="text-gray-400 text-sm italic mb-8">{question.explanation}</p>
+          {/* Explicación — viene de question que se recarga con el idioma */}
+          {question?.explanation && (
+            <p className="text-gray-400 text-sm italic mb-8">{question.explanation}</p>
+          )}
 
           <button
             onClick={() => navigate(`/grupos/${code}`)}
-            className="px-8 py-3 bg-purple-600 hover:bg-purple-500
-                       text-white font-semibold rounded-xl transition-colors"
+            className="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-colors"
           >
             {t ? "See leaderboard" : "Ver clasificación"}
           </button>
@@ -215,20 +224,16 @@ function GroupPlay() {
 
   // Pantalla de pregunta con contrarreloj
   const timerPercent = (timeLeft / TIME_LIMIT) * 100
-  const timerColor   = timeLeft > 6 ? "bg-green-500" : timeLeft > 3 ? "bg-yellow-500" : "bg-red-500"
+  const timerColor   = timeLeft > 13 ? "bg-green-500" : timeLeft > 7 ? "bg-yellow-500" : "bg-red-500"
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-xl mx-auto">
-
-        {/* Contrarreloj */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-400 text-sm">
-              {t ? "Time" : "Tiempo"}
-            </span>
+            <span className="text-gray-400 text-sm">{t ? "Time" : "Tiempo"}</span>
             <span className={`text-2xl font-bold font-mono ${
-              timeLeft > 6 ? "text-green-400" : timeLeft > 3 ? "text-yellow-400" : "text-red-400"
+              timeLeft > 13 ? "text-green-400" : timeLeft > 7 ? "text-yellow-400" : "text-red-400"
             }`}>
               {timeLeft}s
             </span>
@@ -246,7 +251,6 @@ function GroupPlay() {
           )}
         </div>
 
-        {/* Pregunta */}
         <p className="text-xs text-purple-400 font-semibold uppercase tracking-widest mb-3">
           {t ? "Group question" : "Pregunta del grupo"}
         </p>
@@ -254,7 +258,6 @@ function GroupPlay() {
           {question.question}
         </h2>
 
-        {/* Opciones */}
         <div className="flex flex-col gap-3">
           {question.options.map(option => (
             <button
@@ -267,14 +270,11 @@ function GroupPlay() {
                          disabled:opacity-50 disabled:cursor-not-allowed
                          transition-all duration-200"
             >
-              <span className="text-purple-400 font-bold mr-3">
-                {option.id.toUpperCase()}.
-              </span>
+              <span className="text-purple-400 font-bold mr-3">{option.id.toUpperCase()}.</span>
               {option.text}
             </button>
           ))}
         </div>
-
       </div>
     </div>
   )

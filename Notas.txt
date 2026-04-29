@@ -1,4 +1,5 @@
 https://bkotksthrkuoakqjovoj.supabase.co/functions/v1/super-api
 http://localhost:3000/api/admin/generate
 
-El idioma de las preguntas en grupo no cambia
+No carga la pregunta de grupo si ya ha respondido
+Al responder la pregunta de grupo, la explicacion se queda en el idioma seleccionado, tampoco aparece la pregunta
