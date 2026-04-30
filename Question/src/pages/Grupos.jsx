@@ -15,7 +15,7 @@ const STEP = {
 function Grupos({ initialStep }) {
   const navigate         = useNavigate()
   const { code: inviteCode } = useParams() // código del enlace compartido
-  const { enterGroup, getUserData, saveUserData, sessionLoaded, group } = useGroup()
+  const { enterGroup, getUserData, saveUserData, sessionLoaded} = useGroup()
   const { lang }         = useLang()
   const t                = lang === "en"
 
@@ -91,8 +91,6 @@ function Grupos({ initialStep }) {
       // Si venía de enlace compartido, ir directo a unirse
       if (intent === "join" || initialStep === "joinWithCode") {
         setStep(STEP.JOIN)
-      } else if (intent === "create") {
-        setStep(STEP.MY_GROUPS)
       } else {
         setStep(STEP.MY_GROUPS)
       }
@@ -163,8 +161,14 @@ function Grupos({ initialStep }) {
         </p>
         <div className="flex flex-col gap-4">
           <button
-            onClick={() => { setIntent("create"); setStep(STEP.IDENTIFY) }}
+            onClick={() => { setIntent("myGroups"); setStep(STEP.IDENTIFY) }}
             className="py-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-colors"
+          >
+            {t ? "My groups 👥" : "Mis grupos 👥"}
+          </button>
+          <button
+            onClick={() => { setIntent("create"); setStep(STEP.IDENTIFY) }}
+            className="py-4 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl border border-gray-700 transition-colors"
           >
             {t ? "Create group" : "Crear grupo"}
           </button>
@@ -293,7 +297,13 @@ function Grupos({ initialStep }) {
             {t ? "Join with code" : "Unirse con código"}
           </button>
           <button
-            onClick={() => { saveUserData(null); localStorage.removeItem("triviaUserData"); navigate("/grupos") }}
+            onClick={() => {
+              localStorage.removeItem("triviaUserData")
+              setUserData_(null)
+              setStep(STEP.INITIAL)
+              setForm({ username: "", pin: "", groupName: "", groupCode: inviteCode || "" })
+              setError(null)
+            }}
             className="py-2 text-gray-500 hover:text-gray-300 text-sm transition-colors"
           >
             {t ? "Switch user" : "Cambiar usuario"}
