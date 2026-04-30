@@ -111,6 +111,7 @@ function Grupos({ initialStep }) {
     try {
       const data = await createGroup(form.groupName, userData.username, userData.pin)
       enterGroup(data.group, data.participant)
+      await refreshUserGroups()
       navigate(`/grupos/${data.group.code}`)
     } catch (err) {
       setError(err.message)
@@ -129,12 +130,22 @@ function Grupos({ initialStep }) {
     try {
       const data = await joinGroup(form.groupCode, userData.username, userData.pin)
       enterGroup(data.group, data.participant)
+      await refreshUserGroups()
       navigate(`/grupos/${data.group.code}`)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  async function refreshUserGroups() {
+    try {
+      const data = await identifyUser(userData.username, userData.pin)
+      const updated = { ...userData, ...data }
+      setUserData_(updated)
+      saveUserData(updated)
+    } catch {}
   }
 
   function enterExistingGroup(g) {
