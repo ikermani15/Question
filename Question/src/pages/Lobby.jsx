@@ -214,7 +214,7 @@ function Lobby() {
             onClick={() => { leaveGroup(); navigate("/grupos") }}
             className="py-3 text-gray-500 hover:text-gray-300 text-sm transition-colors"
           >
-            {t ? "Log out of group" : "Cerrar sesión del grupo"}
+            {t ? "Log out" : "Cerrar sesión"}
           </button>
         </div>
       </div>
