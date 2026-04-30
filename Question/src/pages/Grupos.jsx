@@ -175,7 +175,7 @@ function Grupos({ initialStep }) {
             onClick={() => { setIntent("myGroups"); setStep(STEP.IDENTIFY) }}
             className="py-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-colors"
           >
-            {t ? "My groups 👥" : "Mis grupos 👥"}
+            {t ? "My groups 👥" : "Mis grupos"}
           </button>
           <button
             onClick={() => { setIntent("create"); setStep(STEP.IDENTIFY) }}
