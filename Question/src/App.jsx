@@ -10,13 +10,15 @@ function App() {
   return (
     <BrowserRouter>
       <Navbar />
-      <div className="pt-16"> {/* espacio para que el contenido no quede bajo la navbar */}
+      <div className="pt-16">
         <Routes>
-          <Route path="/"                      element={<Home />} />
-          <Route path="/result"                element={<Result />} />
-          <Route path="/grupos"                element={<Grupos />} />
-          <Route path="/grupos/:code"          element={<Lobby />} />
-          <Route path="/grupos/:code/jugar"    element={<GroupPlay />} />
+          <Route path="/"                        element={<Home />} />
+          <Route path="/result"                  element={<Result />} />
+          <Route path="/grupos"                  element={<Grupos />} />
+          <Route path="/grupos/mis-grupos"       element={<Grupos initialStep="myGroups" />} />
+          <Route path="/grupos/join/:code"       element={<Grupos initialStep="joinWithCode" />} />
+          <Route path="/grupos/:code"            element={<Lobby />} />
+          <Route path="/grupos/:code/jugar"      element={<GroupPlay />} />
         </Routes>
       </div>
     </BrowserRouter>

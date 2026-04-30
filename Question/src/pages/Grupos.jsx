@@ -1,33 +1,63 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import { identifyUser, createGroup, joinGroup } from "../services/groupService"
 import { useGroup } from "../context/GroupContext"
 import { useLang } from "../context/LangContext"
 
-// Pasos del flujo
 const STEP = {
-  INITIAL:    "initial",    // Crear / Unirse
-  IDENTIFY:   "identify",   // Username + PIN
-  MY_GROUPS:  "myGroups",   // Lista de grupos del usuario
-  CREATE:     "create",     // Nombre del grupo nuevo
-  JOIN:       "join",       // Código del grupo
+  INITIAL:   "initial",
+  IDENTIFY:  "identify",
+  MY_GROUPS: "myGroups",
+  CREATE:    "create",
+  JOIN:      "join",
 }
 
-function Grupos() {
-  const navigate       = useNavigate()
-  const { enterGroup } = useGroup()
-  const { lang }       = useLang()
-  const t              = lang === "en"
+function Grupos({ initialStep }) {
+  const navigate         = useNavigate()
+  const { code: inviteCode } = useParams() // código del enlace compartido
+  const { enterGroup, getUserData, saveUserData, sessionLoaded, group } = useGroup()
+  const { lang }         = useLang()
+  const t                = lang === "en"
 
   const [step, setStep]         = useState(STEP.INITIAL)
-  const [intent, setIntent]     = useState(null) // "create" | "join"
+  const [intent, setIntent]     = useState(null)
   const [error, setError]       = useState(null)
   const [loading, setLoading]   = useState(false)
-  const [userData, setUserData] = useState(null) // { username, pin, groups }
+  const [userData, setUserData_] = useState(null)
 
   const [form, setForm] = useState({
-    username: "", pin: "", pinConfirm: "", groupName: "", groupCode: "",
+    username: "", pin: "", groupName: "", groupCode: inviteCode || "",
   })
+
+  useEffect(() => {
+    if (!sessionLoaded) return
+
+    // Si viene de "mis grupos" y ya tiene sesión, ir directo a mis grupos
+    if (initialStep === "myGroups") {
+      const saved = getUserData()
+      if (saved) {
+        setUserData_(saved)
+        setStep(STEP.MY_GROUPS)
+        return
+      }
+      setStep(STEP.IDENTIFY)
+      return
+    }
+
+    // Si viene de enlace compartido /grupos/join/:code
+    if (initialStep === "joinWithCode") {
+      const saved = getUserData()
+      if (saved) {
+        setUserData_(saved)
+        setForm(f => ({ ...f, groupCode: inviteCode || "" }))
+        setStep(STEP.JOIN)
+        return
+      }
+      setIntent("join")
+      setStep(STEP.IDENTIFY)
+      return
+    }
+  }, [sessionLoaded, initialStep])
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -35,10 +65,10 @@ function Grupos() {
 
   function goBack() {
     setError(null)
-    if (step === STEP.IDENTIFY)   setStep(STEP.INITIAL)
-    if (step === STEP.MY_GROUPS)  setStep(STEP.IDENTIFY)
-    if (step === STEP.CREATE)     setStep(STEP.MY_GROUPS)
-    if (step === STEP.JOIN)       setStep(STEP.MY_GROUPS)
+    if (step === STEP.IDENTIFY)  setStep(STEP.INITIAL)
+    if (step === STEP.MY_GROUPS) setStep(STEP.INITIAL)
+    if (step === STEP.CREATE)    setStep(STEP.MY_GROUPS)
+    if (step === STEP.JOIN)      userData ? setStep(STEP.MY_GROUPS) : setStep(STEP.INITIAL)
   }
 
   async function handleIdentify() {
@@ -54,8 +84,18 @@ function Grupos() {
     setLoading(true)
     try {
       const data = await identifyUser(form.username, form.pin)
-      setUserData({ username: form.username, pin: form.pin, ...data })
-      setStep(STEP.MY_GROUPS)
+      const ud = { username: form.username, pin: form.pin, ...data }
+      setUserData_(ud)
+      saveUserData(ud)
+
+      // Si venía de enlace compartido, ir directo a unirse
+      if (intent === "join" || initialStep === "joinWithCode") {
+        setStep(STEP.JOIN)
+      } else if (intent === "create") {
+        setStep(STEP.MY_GROUPS)
+      } else {
+        setStep(STEP.MY_GROUPS)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -66,7 +106,7 @@ function Grupos() {
   async function handleCreate() {
     setError(null)
     if (!form.groupName) {
-      setError(t ? "Group name required" : "El nombre del grupo es obligatorio")
+      setError(t ? "Group name required" : "Nombre obligatorio")
       return
     }
     setLoading(true)
@@ -84,7 +124,7 @@ function Grupos() {
   async function handleJoin() {
     setError(null)
     if (!form.groupCode) {
-      setError(t ? "Group code required" : "El código del grupo es obligatorio")
+      setError(t ? "Group code required" : "Código obligatorio")
       return
     }
     setLoading(true)
@@ -107,13 +147,17 @@ function Grupos() {
     navigate(`/grupos/${g.groupCode}`)
   }
 
-  // ── PANTALLA INICIAL ──────────────────────────────────────────────
+  if (!sessionLoaded) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <p className="text-gray-400">...</p>
+    </div>
+  )
+
+  // ── INICIAL ───────────────────────────────────────────────────────
   if (step === STEP.INITIAL) return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm text-center">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          {t ? "🏆 Groups" : "🏆 Grupos"}
-        </h1>
+        <h1 className="text-3xl font-bold text-white mb-2">{t ? "🏆 Groups" : "🏆 Grupos"}</h1>
         <p className="text-gray-400 mb-10">
           {t ? "Compete with your friends daily" : "Compite con tus amigos cada día"}
         </p>
@@ -142,14 +186,20 @@ function Grupos() {
         <button onClick={goBack} className="text-gray-400 hover:text-white text-sm mb-6 flex items-center gap-1">
           ← {t ? "Back" : "Volver"}
         </button>
-        <h2 className="text-2xl font-bold text-white mb-2">
-          {t ? "Who are you?" : "¿Quién eres?"}
-        </h2>
+        <h2 className="text-2xl font-bold text-white mb-2">{t ? "Who are you?" : "¿Quién eres?"}</h2>
         <p className="text-gray-400 text-sm mb-6">
           {t
-            ? "Enter your username and PIN. New user? Choose a PIN to remember."
-            : "Introduce tu nombre y PIN. ¿Usuario nuevo? Elige un PIN que recuerdes."}
+            ? "Enter your username and PIN. New? Choose one to remember."
+            : "Introduce tu nombre y PIN. ¿Nuevo? Elige uno que recuerdes."}
         </p>
+        {inviteCode && (
+          <div className="bg-purple-900/30 border border-purple-700 rounded-xl px-4 py-3 mb-4">
+            <p className="text-purple-300 text-sm">
+              {t ? `You've been invited to join group ` : `Te han invitado al grupo `}
+              <span className="font-mono font-bold">{inviteCode}</span>
+            </p>
+          </div>
+        )}
         <div className="flex flex-col gap-4">
           <input
             name="username"
@@ -170,9 +220,7 @@ function Grupos() {
                        focus:outline-none focus:border-purple-500 placeholder-gray-500"
           />
           <p className="text-gray-500 text-xs px-1">
-            {t
-              ? "Your PIN identifies you across devices. Don't forget it!"
-              : "Tu PIN te identifica en todos los dispositivos. ¡No lo olvides!"}
+            {t ? "Your PIN identifies you across devices." : "Tu PIN te identifica en todos los dispositivos."}
           </p>
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
           <button
@@ -191,15 +239,10 @@ function Grupos() {
   if (step === STEP.MY_GROUPS) return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <button onClick={goBack} className="text-gray-400 hover:text-white text-sm mb-6 flex items-center gap-1">
-          ← {t ? "Back" : "Volver"}
-        </button>
         <h2 className="text-2xl font-bold text-white mb-1">
           {t ? `Hello, ${userData?.username}!` : `¡Hola, ${userData?.username}!`}
         </h2>
-        <p className="text-gray-400 text-sm mb-6">
-          {t ? "Your groups" : "Tus grupos"}
-        </p>
+        <p className="text-gray-400 text-sm mb-6">{t ? "Your groups" : "Tus grupos"}</p>
 
         {userData?.groups?.length > 0 ? (
           <div className="flex flex-col gap-3 mb-6">
@@ -208,8 +251,7 @@ function Grupos() {
                 key={g.groupCode}
                 onClick={() => enterExistingGroup(g)}
                 className="w-full text-left px-4 py-4 bg-gray-800 hover:bg-gray-700
-                           border border-gray-700 hover:border-purple-500
-                           rounded-xl transition-colors"
+                           border border-gray-700 hover:border-purple-500 rounded-xl transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -235,9 +277,8 @@ function Grupos() {
           </div>
         )}
 
-        {/* Botones según la intención original */}
         <div className="flex flex-col gap-3">
-          {(intent === "create" || userData?.groups?.length < 3) && (
+          {userData?.groups?.length < 3 && (
             <button
               onClick={() => setStep(STEP.CREATE)}
               className="py-3 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-colors"
@@ -251,6 +292,12 @@ function Grupos() {
           >
             {t ? "Join with code" : "Unirse con código"}
           </button>
+          <button
+            onClick={() => { saveUserData(null); localStorage.removeItem("triviaUserData"); navigate("/grupos") }}
+            className="py-2 text-gray-500 hover:text-gray-300 text-sm transition-colors"
+          >
+            {t ? "Switch user" : "Cambiar usuario"}
+          </button>
         </div>
       </div>
     </div>
@@ -263,9 +310,7 @@ function Grupos() {
         <button onClick={goBack} className="text-gray-400 hover:text-white text-sm mb-6 flex items-center gap-1">
           ← {t ? "Back" : "Volver"}
         </button>
-        <h2 className="text-2xl font-bold text-white mb-6">
-          {t ? "Name your group" : "Nombre del grupo"}
-        </h2>
+        <h2 className="text-2xl font-bold text-white mb-6">{t ? "Name your group" : "Nombre del grupo"}</h2>
         <div className="flex flex-col gap-4">
           <input
             name="groupName"
@@ -288,16 +333,14 @@ function Grupos() {
     </div>
   )
 
-  // ── UNIRSE CON CÓDIGO ─────────────────────────────────────────────
+  // ── UNIRSE ────────────────────────────────────────────────────────
   if (step === STEP.JOIN) return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <button onClick={goBack} className="text-gray-400 hover:text-white text-sm mb-6 flex items-center gap-1">
           ← {t ? "Back" : "Volver"}
         </button>
-        <h2 className="text-2xl font-bold text-white mb-6">
-          {t ? "Enter group code" : "Código del grupo"}
-        </h2>
+        <h2 className="text-2xl font-bold text-white mb-6">{t ? "Enter group code" : "Código del grupo"}</h2>
         <div className="flex flex-col gap-4">
           <input
             name="groupCode"

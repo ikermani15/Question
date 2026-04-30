@@ -6,6 +6,7 @@ const GroupContext = createContext(null)
 export function GroupProvider({ children }) {
   const [group, setGroup]             = useState(null)
   const [participant, setParticipant] = useState(null)
+  const [sessionLoaded, setSessionLoaded] = useState(false)
 
   useEffect(() => {
     const session = getGroupSession()
@@ -13,6 +14,7 @@ export function GroupProvider({ children }) {
       setGroup(session.group)
       setParticipant(session.participant)
     }
+    setSessionLoaded(true)
   }, [])
 
   function enterGroup(groupData, participantData) {
@@ -27,8 +29,21 @@ export function GroupProvider({ children }) {
     clearGroupSession()
   }
 
+  // Guardar userData (username + PIN) para no pedirlo de nuevo
+  function saveUserData(data) {
+    localStorage.setItem("triviaUserData", JSON.stringify(data))
+  }
+
+  function getUserData() {
+    const d = localStorage.getItem("triviaUserData")
+    return d ? JSON.parse(d) : null
+  }
+
   return (
-    <GroupContext.Provider value={{ group, participant, enterGroup, leaveGroup }}>
+    <GroupContext.Provider value={{
+      group, participant, sessionLoaded,
+      enterGroup, leaveGroup, saveUserData, getUserData
+    }}>
       {children}
     </GroupContext.Provider>
   )
