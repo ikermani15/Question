@@ -22,20 +22,3 @@ medianoche queda disponible para todos los usuarios.
 **Frontend:** React 19, Vite, Tailwind CSS, React Router, Axios
 **Backend:** Node.js, Express, PostgreSQL, Supabase, node-cron
 **IA:** Google Gemini API / Anthropic API para generación de preguntas
-
-## Ejecutar en local
-\`\`\`bash
-# Backend
-cd backend
-npm install
-cp .env.example .env   # añade tus claves
-npm run dev
-
-# Frontend
-cd Question
-npm install
-npm run dev
-\`\`\`
-
-## Próximos pasos
-- Integración de anuncios y monetización
